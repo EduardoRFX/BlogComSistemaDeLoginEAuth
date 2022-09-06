@@ -1,14 +1,12 @@
+const bodyParser = require('body-parser');
 const express = require('express');
 
 const app = express();
-const bodyParser = require('body-parser');
 
-const { estrategiasAutenticacao } = require('./src/usuarios/index.js')
+app.get('/', (req, res) => {
+  res.status(200).send('Bem-vindo ao Sistema do Blog')
+})
 
-app.use(
-  bodyParser.urlencoded({
-    extended: true
-  })
-);
+app.use(bodyParser.json())
 
 module.exports = app;
