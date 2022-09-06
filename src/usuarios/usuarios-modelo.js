@@ -2,7 +2,6 @@ const usuariosDao = require('./usuarios-dao');
 const { InvalidArgumentError } = require('../erros');
 const validacoes = require('../validacoes-comuns');
 const bcrypt = require('bcrypt');
-const { json } = require('body-parser');
 
 class Usuario {
   constructor(usuario) {
@@ -10,8 +9,9 @@ class Usuario {
     this.nome = usuario.nome;
     this.email = usuario.email;
     this.senhaHash = usuario.senhaHash;
-
+    this.emailVerificado = usuario.emailVerificado
     this.valida();
+
   }
 
   async adiciona() {
@@ -19,7 +19,9 @@ class Usuario {
       throw new InvalidArgumentError('O usuário já existe!');
     }
 
-    return usuariosDao.adiciona(this);
+    await usuariosDao.adiciona(this)
+    const { id } = await usuariosDao.buscaPorEmail(this.email)
+    this.id = id
   }
 
   //NEW
@@ -37,6 +39,10 @@ class Usuario {
     
   }
 
+  async verificaEmail() {
+    this.emailVerificado = true
+    await usuariosDao.modificaEmailVerificado(this, this.emailVerificado)
+  }
   
   async deleta() {
     return usuariosDao.deleta(this);

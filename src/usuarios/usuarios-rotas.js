@@ -1,8 +1,14 @@
 const usuariosControlador = require('./usuarios-controlador');
 const middlewaresAutenticacao = require('./middlewares-autenticacao.js')
-// const passport = require('passport')
+
 
 module.exports = app => {
+  
+  app
+      .route('/usuario/atualiza_token')
+      .post(middlewaresAutenticacao.refresh,usuariosControlador.login)
+  
+
   app
     .route('/usuario/login')
     .post(
@@ -12,20 +18,18 @@ module.exports = app => {
 
   app
   .route('/usuario/logout')
-  .get(middlewaresAutenticacao.bearer,usuariosControlador.logout)
+  .post([middlewaresAutenticacao.refresh, middlewaresAutenticacao.bearer]
+        ,usuariosControlador.logout)
 
-  app
-      .route('/usuario/email')
-      .get(usuariosControlador.buscarPorEmail)
-
-  app
-      .route('/usuario/:id')
-      .get(usuariosControlador.buscaPorId)
-  
   app
     .route('/usuario')
     .post(usuariosControlador.adiciona)
     .get(usuariosControlador.lista);
+
+  app
+      .route('/usuario/verifica_email/:token')
+      .get(middlewaresAutenticacao.verificacaoEmail,
+        usuariosControlador.verificaEmail)
 
   app.route('/usuario/:id')
     .delete(

@@ -1,98 +1,94 @@
 const Usuario = require('./usuarios-modelo');
-const { InvalidArgumentError, InternalServerError } = require('../erros');
-const jwt = require('jsonwebtoken')
-const blacklist = require('../../redis/manipula-blacklist.js')
+const { InvalidArgumentError } = require('../erros');
 
-function criaTokenJWT(usuario) {
-  const payload = {
-    id: usuario.id
-  }
+const tokens = require('./tokens.js')
+const { EmailVerificacao } = require('./emails.js')
 
-  const token = jwt.sign(payload, process.env.CHAVE_JWT, { expiresIn: '15m' })
-  return token
-
+function geraEndereco(rota, token) {
+    const baseURL = process.env.BASE_URL
+    return `${baseURL}${rota}${token}`
 }
 
 module.exports = {
-  adiciona: async (req, res) => {
-    const { nome, email, senha } = req.body;
+  async adiciona(req, res) {
+    const { nome, email, senhaHash } = req.body;
 
     try {
       const usuario = new Usuario({
         nome,
-        email
+        email,
+        emailVerificado: false
       });
 
-      await usuario.adicionaSenha(senha)
-
+      await usuario.adicionaSenha(senhaHash)
       await usuario.adiciona();
 
-      res.status(201).json();
+      const token = tokens.verificacaoEmail.cria(usuario.id)
+
+      const endereco = geraEndereco('/usuario/Verifica_email/', token)
+      const emailVerificado = new EmailVerificacao(usuario, endereco)
+      emailVerificado.enviaEmail().catch(console.log)
+
+      res.status(201).json(usuario);
+
     } catch (erro) {
       if (erro instanceof InvalidArgumentError) {
-        res.status(422).json({ erro: erro.message });
-      } else if (erro instanceof InternalServerError) {
-        res.status(500).json({ erro: erro.message });
-      } else {
-        res.status(500).json({ erro: erro.message });
-      }
+        return res.status(400).json({ erro: erro.message });
+      } 
+      res.status(500).json({ erro: erro.message })
     }
   },
 
-  login: (req, res) =>{
-    const token = criaTokenJWT(req.user)
-    res.set('Authorization', token)
-    res.status(204).send()
+  async login(req, res) {
+    try {
+      const accesstoken = tokens.access.cria(req.user.id)
+      const refreshToken = await tokens.refresh.cria(req.user.id)
+      res.set('Authorization', accesstoken)
+      res.status(200).json({refreshToken})
+
+    }catch (erro) {
+      res.status(500).json({erro: erro.message})
+    }
   },
 
-  logout: async (req, res) => {
+  async logout(req, res) {
     try{
       const token = req.token 
-      await blacklist.adiciona(token)
-      res.status(204).send()
+      await tokens.access.invalida(token)
+      res.status(204).send('Logout Realizado!')
 
     } catch (erro) {
       res.status(500).json({ erro: erro.message })
     }
   },
 
-  lista: async (req, res) => {
-    const usuarios = await Usuario.lista();
-    res.json(usuarios);
-  },
-
-  buscaPorId: async (req, res) => {
-    const { id } = req.params
-    
-    try {
-      const usuarioBuscado = await Usuario.buscaPorId(id)
-      res.status(200).json(usuarioBuscado)
-
-    } catch (err) {
-      res.status(500).json({ err: err })
-    }
-
-  },
-
-  buscarPorEmail: async (req, res) => {
-    const { email } = req.body
-
+  async lista(req, res) {
     try{
-      const emailBuscado = await Usuario.buscaPorEmail(email)
-      res.status(200).json(emailBuscado)
+      const usuarios = await Usuario.lista();
+      res.status(200).json(usuarios);
 
-    } catch (err) {
-      res.status(500).json({ err: err })
+    } catch (erro) {
+      res.status(500).json({ erro: erro.message })
     }
-
-
   },
 
-  deleta: async (req, res) => {
-    const usuario = await Usuario.buscaPorId(req.params.id);
+  async verificaEmail(req, res) {
     try {
+        const usuario = req.user
+        await usuario.verificaEmail()
+        res.status(200).json({message: 'Seu E-mail foi verificado !'})
+
+    } catch (erro) {
+      res.status(500).json({ erro: erro.message })
+    }
+  },
+
+  async deleta(req, res) {
+    try {
+      const usuario = await Usuario.buscaPorId(req.params.id);
       await usuario.deleta();
-      res.status(200).send();
+      res.status(200).json({ message: `Usuario Deletado com sucesso!` });
+
     } catch (erro) {
       res.status(500).json({ erro: erro });
     }

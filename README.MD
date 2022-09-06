@@ -12,3 +12,6 @@
 * passport
 * redis
 * sqlite3
+* nodemailer
+* moment
+* nodemon
