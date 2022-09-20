@@ -1,6 +1,15 @@
-# 🚀 Blog com Sistema de Login E Autenticação
+# 🚀 API para um sistema de Blog
 
-### Sistema de um blog, com login&logout, autenticação com token e crud de posts e usuários.
+### Features
+* Sistema de login&logout 
+* Envio de email de verificação de conta 
+* Esqueci-Minha-Senha
+* Troca de senha
+* RBAC - Controle de acesso baseado em cargo(admin, editor e assinante)
+* CRUD para os posts e usuário 
+* Atualização dos tokens de acesso e refresh
+* Encriptação de senha de usuário
+
 
 ### 🛠 Tecnologias 
 
@@ -15,3 +24,4 @@
 * nodemailer
 * moment
 * nodemon
+* accessControl
