@@ -12,9 +12,15 @@ module.exports = {
   async adiciona (usuario) {
     try {
       await dbRun(
-        `INSERT INTO usuarios (nome, email, senhaHash, emailVerificado)
-        VALUES (?, ?, ?, ?)`,
-        [usuario.nome, usuario.email, usuario.senhaHash, usuario.emailVerificado]
+        `INSERT INTO usuarios (nome, email, senhaHash, emailVerificado, cargo)
+        VALUES (?, ?, ?, ?, ?)`,
+        [
+          usuario.nome,
+          usuario.email,
+          usuario.senhaHash,
+          usuario.emailVerificado,
+          usuario.cargo
+        ]
       )
 
     }catch (erro) {
@@ -26,7 +32,7 @@ module.exports = {
   async buscaPorId (id) {
     try {
       return await dbGet (
-          `SELECT * FROM usuarios WHERE id = ?`, [id]
+          'SELECT * FROM usuarios WHERE id = ?', [id]
       )
 
     } catch (erro) {
@@ -36,10 +42,7 @@ module.exports = {
 
   async buscaPorEmail (email) {
       try {
-        return await dbGet(
-          `SELECT * FROM usuarios WHERE email = ?`, [email]
-        )
-
+        return await dbGet('SELECT * FROM usuarios WHERE email = ?', [email])
       }catch (erro) {
         throw new InternalServerError('Não foi possivel encontra o email!')
       }
@@ -47,10 +50,7 @@ module.exports = {
 
   async lista() {
       try {
-        return await dbAll(
-          `SELECT * FROM usuarios`
-        )
-
+        return await dbAll('SELECT * FROM usuarios')
       } catch (erro) {
         throw new InternalServerError('Erro ao listar os usuarios!')
       }
@@ -80,5 +80,16 @@ module.exports = {
       }catch (erro) {
           throw new InternalServerError('Erro ao deletar o usuario!')
       }
+  },
+
+  async atualizarSenha(senha, id) {
+    try {
+      await dbRun('UPDATE usuarios SET senhaHash = ? WHERE id = ?', [
+        senha,
+        id
+      ])
+    } catch (erro) {
+      throw new InternalServerError('Erro ao tentar atualizar senha do usuário!')
+    }
   }
 };

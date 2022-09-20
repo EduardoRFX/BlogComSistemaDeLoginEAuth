@@ -1,8 +1,9 @@
 const Usuario = require('./usuarios-modelo');
-const { InvalidArgumentError } = require('../erros');
+const { InvalidArgumentError, NaoEncontrado } = require('../erros');
 
 const tokens = require('./tokens.js')
-const { EmailVerificacao } = require('./emails.js')
+const { EmailVerificacao, EmailRedefinicaoSenha } = require('./emails.js')
+const { ConversorUsuario } = require('../conversores')
 
 function geraEndereco(rota, token) {
     const baseURL = process.env.BASE_URL
@@ -11,13 +12,14 @@ function geraEndereco(rota, token) {
 
 module.exports = {
   async adiciona(req, res) {
-    const { nome, email, senhaHash } = req.body;
+    const { nome, email, senhaHash, cargo } = req.body;
 
     try {
       const usuario = new Usuario({
         nome,
         email,
-        emailVerificado: false
+        emailVerificado: false,
+        cargo
       });
 
       await usuario.adicionaSenha(senhaHash)
@@ -47,7 +49,7 @@ module.exports = {
       res.status(200).json({refreshToken})
 
     }catch (erro) {
-      res.status(500).json({erro: erro.message})
+      next(erro)
     }
   },
 
@@ -58,17 +60,21 @@ module.exports = {
       res.status(204).send('Logout Realizado!')
 
     } catch (erro) {
-      res.status(500).json({ erro: erro.message })
+      next(erro)
     }
   },
 
-  async lista(req, res) {
+  async lista(req, res, next) {
     try{
       const usuarios = await Usuario.lista();
-      res.status(200).json(usuarios);
+      const conversor = new ConversorUsuario(
+        'json',
+        req.acesso.todos.permitido ? req.acesso.todos.atributos : req.acesso.apenasSeu.atributos
+      )
+      res.status(200).send(conversor.converter(usuarios));
 
     } catch (erro) {
-      res.status(500).json({ erro: erro.message })
+      next(erro)
     }
   },
 
@@ -79,7 +85,7 @@ module.exports = {
         res.status(200).json({message: 'Seu E-mail foi verificado !'})
 
     } catch (erro) {
-      res.status(500).json({ erro: erro.message })
+      next(erro)
     }
   },
 
@@ -90,7 +96,42 @@ module.exports = {
       res.status(200).json({ message: `Usuario Deletado com sucesso!` });
 
     } catch (erro) {
-      res.status(500).json({ erro: erro });
+      next(erro)
+    }
+  },
+
+  async esqueciMinhaSenha (req, res, next) {
+    const respostaPadrao = {message: 'Se encontrarmos um usuario com este email, vamos enviar uma mensagem com as intruções para redefinir a senha'}
+    try {
+      const usuario = await Usuario.buscaPorEmail(req.body.email)
+      const token = await tokens.redefinicaoDeSenha.criarToken(usuario.id)
+      const email = new EmailRedefinicaoSenha(usuario, token)
+      await email.enviaEmail()
+
+      res.send(respostaPadrao)
+    }catch (erro) {
+      if (erro instanceof NaoEncontrado) {
+        res.send(respostaPadrao)
+        return 
+      }
+
+      next(erro)
+    }
+  },
+
+  async trocarSenha(req, res, next) {
+    try {
+      if (typeof req.body.token !== 'string' || req.body.token.length === 0) {
+        throw new InvalidArgumentError('O token está invalido')
+      }
+
+      const id = await tokens.redefinicaoDeSenha.verifica(req.body.token)
+      const usuario = await Usuario.buscaPorId(id)
+      await usuario.adicionaSenha(req.body.senha)
+      await usuario.atualizarSenha()
+      res.send({ message: 'Sua senha foi atualizada com sucesso!' })
+    } catch(erro) {
+      next(erro)
     }
   }
 };

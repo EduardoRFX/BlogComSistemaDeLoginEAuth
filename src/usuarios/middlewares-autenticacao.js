@@ -38,20 +38,13 @@ module.exports = {
             'bearer',
             { session: false },
             (erro, usuario, info) =>{
-                if (erro && erro.name === "JsonWebTokenError") {
-                    return res.status(401).json({erro: erro.message})
-                }
-
                 if (erro) {
-                    return res.status(500).json({ erro: erro.message })
-                }
-
-                if (!usuario) {
-                    return res.status(401).json()
+                    return next(erro)
                 }
 
                 req.token = info.token
                 req.user = usuario
+                req.estaAutenticado = true
                 return next()
             }
         )(req, res, next)

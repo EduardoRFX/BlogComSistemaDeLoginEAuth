@@ -1,8 +1,11 @@
 const crypto = require('crypto')
 const moment = require('moment')
+
 const allowlistRefreshToken = require('../../redis/allowlist-refresh-token.js')
-const jwt = require('jsonwebtoken')
 const blockListAccessToken = require('../../redis/blocklist-access-token.js')
+const listaRedefinicao = require('../../redis/listaRedefinicaoDeSenha.js')
+
+const jwt = require('jsonwebtoken')
 const { InvalidArgumentError } = require('../erros.js')
 
 
@@ -102,6 +105,18 @@ module.exports = {
         },
         verifica(token) {
             return verificaTokenJWT(token, this.nome)
+        }
+    },
+
+    redefinicaoDeSenha: {
+        nome: 'redefinição de senha',
+        lista: listaRedefinicao,
+        expiracao: [1, 'h'],
+        criarToken (id) {
+            return criaTokenOpacao(id, this.expiracao, this.lista)
+        },
+        verifica (token) {
+            return verificaTokenOpaco(token, this.nome, this.lista)
         }
     }
 }

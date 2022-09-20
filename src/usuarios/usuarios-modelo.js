@@ -1,5 +1,5 @@
 const usuariosDao = require('./usuarios-dao');
-const { InvalidArgumentError } = require('../erros');
+const { InvalidArgumentError, NaoEncontrado } = require('../erros');
 const validacoes = require('../validacoes-comuns');
 const bcrypt = require('bcrypt');
 
@@ -10,12 +10,13 @@ class Usuario {
     this.email = usuario.email;
     this.senhaHash = usuario.senhaHash;
     this.emailVerificado = usuario.emailVerificado
+    this.cargo = usuario.cargo
     this.valida();
 
   }
 
   async adiciona() {
-    if (await Usuario.buscaPorEmail(this.email)) {
+    if (await usuariosDao.buscaPorEmail(this.email)) {
       throw new InvalidArgumentError('O usuário já existe!');
     }
 
@@ -33,10 +34,18 @@ class Usuario {
     this.senhaHash = await Usuario.gerarSenhaHash(senha)
   }
 
+  atualizarSenha() {
+    return usuariosDao.atualizarSenha(this.senhaHash, this.id)
+  }
+
   valida() {
     validacoes.campoStringNaoNulo(this.nome, 'nome');
     validacoes.campoStringNaoNulo(this.email, 'email');
-    
+    const cargoValido = ['admin', 'editor', 'assinante']
+
+    if (cargoValido.indexOf(this.cargo) === -1) {
+      throw new InvalidArgumentError('O campo cargo está invalido!')
+    }
   }
 
   async verificaEmail() {
@@ -51,7 +60,7 @@ class Usuario {
   static async buscaPorId(id) {
     const usuario = await usuariosDao.buscaPorId(id);
     if (!usuario) {
-      return null;
+      throw new NaoEncontrado('usuario')
     }
     
     return new Usuario(usuario);
@@ -60,7 +69,7 @@ class Usuario {
   static async buscaPorEmail(email) {
     const usuario = await usuariosDao.buscaPorEmail(email);
     if (!usuario) {
-      return null;
+      throw new NaoEncontrado('usuario')
     }
     
     return new Usuario(usuario);
@@ -70,7 +79,7 @@ class Usuario {
     return usuariosDao.lista();
   }
 
-  //NEW
+  
   static gerarSenhaHash(senha) {
     const custoHash = 12;
     return bcrypt.hash(senha, custoHash)
